@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createUsers, checkUserExists } from "~/server/queries";
+import { createAttendees, checkAttendeeExists } from "~/server/queries";
 import { z } from "zod";
 
 const manualParticipantSchema = z.object({
@@ -19,29 +19,29 @@ export async function POST(request: NextRequest) {
     const validatedData = manualParticipantSchema.parse(body);
 
     // Check if participant already exists
-    const existingUser = await checkUserExists(
+    const existingAttendee = await checkAttendeeExists(
       validatedData.name,
-      validatedData.email,
+      validatedData.email
     );
 
-    if (existingUser) {
+    if (existingAttendee) {
       return NextResponse.json(
         {
           success: false,
           message: "Participant already exists with this name and email",
         },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
-    // Create new user
-    await createUsers(
+    // Create new attendee
+    await createAttendees(
       validatedData.name,
       validatedData.email,
       validatedData.phone || "",
       validatedData.transactionId || "",
       validatedData.status,
-      validatedData.screenshot || "",
+      validatedData.screenshot || ""
     );
 
     return NextResponse.json({
@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
           error: "Invalid data format",
           details: error.issues,
         },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
         success: false,
         error: "Failed to create participant",
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

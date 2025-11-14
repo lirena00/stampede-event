@@ -1,5 +1,5 @@
 import Header from "~/components/Header";
-import { getAllUsers, getDashboardStats } from "~/server/queries";
+import { getAllAttendees, getDashboardStats } from "~/server/queries";
 import { userColumns } from "~/components/user-columns";
 import { DataTable } from "~/components/data-table";
 import { StatsCard } from "~/components/stats-card";
@@ -21,12 +21,14 @@ import {
 import { Button } from "~/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { Badge } from "~/components/ui/badge";
+import { useSession } from "~/lib/auth-client";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
+  const { data: session } = useSession();
   const [users, stats] = await Promise.all([
-    getAllUsers(),
+    getAllAttendees(),
     getDashboardStats(),
   ]);
 
@@ -185,7 +187,7 @@ export default async function HomePage() {
                                 const now = new Date();
                                 const diffInHours = Math.floor(
                                   (now.getTime() - createdAt.getTime()) /
-                                    (1000 * 60 * 60),
+                                    (1000 * 60 * 60)
                                 );
                                 const diffInDays = Math.floor(diffInHours / 24);
 

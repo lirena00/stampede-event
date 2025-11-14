@@ -1,22 +1,22 @@
 import "server-only";
 import { db } from "./db";
 
-import { users, failedWebhooks } from "./db/schema";
+import { attendees, failedWebhooks } from "./db/schema";
 import { and, eq, sql, asc, desc, count } from "drizzle-orm";
 
-export async function createUsers(
+export async function createAttendees(
   name: string,
   email: string,
   phone: string,
   transaction_id: string,
   status: string,
-  screenshot: string,
+  screenshot: string
 ) {
-  const user = await db.query.users.findFirst({
-    where: (user, { eq }) => eq(user.name, name),
+  const attendee = await db.query.attendees.findFirst({
+    where: (attendee, { eq }) => eq(attendee.name, name),
   });
-  if (!user) {
-    await db.insert(users).values({
+  if (!attendee) {
+    await db.insert(attendees).values({
       name: name,
       email: email,
       phone: phone,
@@ -27,29 +27,29 @@ export async function createUsers(
   }
 }
 
-export async function checkUserExists(name: string, email: string) {
+export async function checkAttendeeExists(name: string, email: string) {
   try {
-    const existingUser = await db.query.users.findFirst({
-      where: and(eq(users.name, name), eq(users.email, email)),
+    const existingAttendee = await db.query.attendees.findFirst({
+      where: and(eq(attendees.name, name), eq(attendees.email, email)),
     });
 
-    return existingUser;
+    return existingAttendee;
   } catch (error) {
-    console.error("Error checking user existence:", error);
-    throw new Error("Failed to check user existence");
+    console.error("Error checking attendee existence:", error);
+    throw new Error("Failed to check attendee existence");
   }
 }
 
-export async function createUserFromWebhook(
+export async function createAttendeeFromWebhook(
   name: string,
   email: string,
   phone?: string,
   transactionId?: string,
-  screenshot?: string,
+  screenshot?: string
 ) {
   try {
-    const newUser = await db
-      .insert(users)
+    const newAttendee = await db
+      .insert(attendees)
       .values({
         name,
         email,
@@ -61,75 +61,77 @@ export async function createUserFromWebhook(
       })
       .returning();
 
-    return { success: true, user: newUser[0] };
+    return { success: true, attendee: newAttendee[0] };
   } catch (error) {
-    console.error("Error creating user from webhook:", error);
-    return { success: false, error: "Failed to create user" };
+    console.error("Error creating attendee from webhook:", error);
+    return { success: false, error: "Failed to create attendee" };
   }
 }
 
-export async function getAllUsers() {
-  const userData = await db
+export async function getAllAttendees() {
+  const attendeeData = await db
     .select({
-      id: users.id,
-      name: users.name,
-      status: users.status,
-      attended: users.attended,
-      phone: users.phone,
-      email: users.email,
-      ticket_sent: users.ticket_sent,
-      ticket_sent_at: users.ticket_sent_at,
-      transaction_id: users.transaction_id,
-      screenshot: users.screenshot,
-      created_at: users.created_at,
+      id: attendees.id,
+      name: attendees.name,
+      status: attendees.status,
+      attended: attendees.attended,
+      phone: attendees.phone,
+      email: attendees.email,
+      ticket_sent: attendees.ticket_sent,
+      ticket_sent_at: attendees.ticket_sent_at,
+      transaction_id: attendees.transaction_id,
+      screenshot: attendees.screenshot,
+      created_at: attendees.created_at,
     })
-    .from(users)
-    .orderBy(desc(users.created_at));
+    .from(attendees)
+    .orderBy(desc(attendees.created_at));
 
-  return userData;
+  return attendeeData;
 }
 
 export async function getDashboardStats() {
-  const totalUsers = await db.select({ count: count() }).from(users);
+  const totalAttendees = await db.select({ count: count() }).from(attendees);
 
-  const registeredUsers = await db
+  const registeredAttendees = await db
     .select({ count: count() })
-    .from(users)
-    .where(eq(users.status, "registered"));
+    .from(attendees)
+    .where(eq(attendees.status, "registered"));
 
   const attendedUsers = await db
     .select({ count: count() })
-    .from(users)
-    .where(eq(users.attended, true));
+    .from(attendees)
+    .where(eq(attendees.attended, true));
 
   const notAttendedUsers = await db
     .select({ count: count() })
-    .from(users)
-    .where(eq(users.attended, false));
+    .from(attendees)
+    .where(eq(attendees.attended, false));
 
   const ticketsSentUsers = await db
     .select({ count: count() })
-    .from(users)
-    .where(eq(users.ticket_sent, true));
+    .from(attendees)
+    .where(eq(attendees.ticket_sent, true));
 
   const ticketsNotSentUsers = await db
     .select({ count: count() })
-    .from(users)
-    .where(eq(users.ticket_sent, false));
+    .from(attendees)
+    .where(eq(attendees.ticket_sent, false));
 
   return {
-    totalUsers: totalUsers[0]?.count || 0,
-    registeredUsers: registeredUsers[0]?.count || 0,
+    totalUsers: totalAttendees[0]?.count || 0,
+    registeredUsers: registeredAttendees[0]?.count || 0,
     attendedUsers: attendedUsers[0]?.count || 0,
     notAttendedUsers: notAttendedUsers[0]?.count || 0,
     ticketsSentUsers: ticketsSentUsers[0]?.count || 0,
     ticketsNotSentUsers: ticketsNotSentUsers[0]?.count || 0,
-    attendanceRate: totalUsers[0]?.count
-      ? Math.round(((attendedUsers[0]?.count || 0) / totalUsers[0].count) * 100)
-      : 0,
-    ticketSentRate: totalUsers[0]?.count
+    attendanceRate: totalAttendees[0]?.count
       ? Math.round(
-          ((ticketsSentUsers[0]?.count || 0) / totalUsers[0].count) * 100,
+          ((attendedUsers[0]?.count || 0) / totalAttendees[0].count) * 100
+        )
+      : 0,
+    ticketSentRate: totalAttendees[0]?.count
+      ? Math.round(
+          ((ticketsSentUsers[0]?.count || 0) / totalAttendees[0].count) * 100
         )
       : 0,
   };
@@ -146,7 +148,7 @@ export async function createFailedWebhook(
     phone?: string;
     transactionId?: string;
     screenshot?: string;
-  },
+  }
 ) {
   try {
     const failedWebhook = await db
@@ -195,7 +197,7 @@ export async function updateFailedWebhook(
     extracted_screenshot?: string;
     notes?: string;
     status?: string;
-  },
+  }
 ) {
   try {
     const updated = await db
@@ -234,15 +236,15 @@ export async function resolveFailedWebhook(id: number) {
       return { success: false, error: "Failed webhook not found" };
     }
 
-    // Create user from extracted data
+    // Create attendee from extracted data
     if (failedWebhook.extracted_name && failedWebhook.extracted_email) {
-      await createUsers(
+      await createAttendees(
         failedWebhook.extracted_name,
         failedWebhook.extracted_email,
         failedWebhook.extracted_phone || "",
         failedWebhook.extracted_transaction_id || "",
         "registered",
-        failedWebhook.extracted_screenshot || "",
+        failedWebhook.extracted_screenshot || ""
       );
 
       // Mark as resolved
@@ -250,7 +252,7 @@ export async function resolveFailedWebhook(id: number) {
 
       return {
         success: true,
-        message: "Failed webhook resolved and user created",
+        message: "Failed webhook resolved and attendee created",
       };
     } else {
       return { success: false, error: "Insufficient data to create user" };

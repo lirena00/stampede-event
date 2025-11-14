@@ -36,6 +36,7 @@ import {
   Activity,
   AlertTriangle,
 } from "lucide-react";
+import { SignIn } from "~/components/SignIn";
 
 const navigation = [
   {
@@ -112,7 +113,7 @@ export default function Header() {
                     className={cn(
                       navigationMenuTriggerStyle(),
                       "h-9 gap-2",
-                      isActive && "bg-accent text-accent-foreground",
+                      isActive && "bg-accent text-accent-foreground"
                     )}
                   >
                     <Link href={item.href}>
@@ -130,6 +131,7 @@ export default function Header() {
         <div className="ml-auto flex items-center space-x-2">
           {/* Theme Toggle */}
           <ModeToggle />
+          <SignIn />
 
           {/* Mobile Menu */}
           <div className="md:hidden">
@@ -172,7 +174,7 @@ export default function Header() {
                           "flex items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                           isActive
                             ? "bg-accent text-accent-foreground"
-                            : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                            : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                         )}
                         onClick={() => setIsOpen(false)}
                       >
@@ -188,6 +190,7 @@ export default function Header() {
                       </Link>
                     );
                   })}
+                  <SignIn />
                 </nav>
               </SheetContent>
             </Sheet>

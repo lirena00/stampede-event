@@ -5,7 +5,7 @@
 "use server";
 import { db } from "./db";
 
-import { users } from "./db/schema";
+import { attendees } from "./db/schema";
 import { and, eq, sql, asc, desc, inArray } from "drizzle-orm";
 import { z } from "zod";
 import Papa from "papaparse";
@@ -23,7 +23,7 @@ const AUTOSEND_BASE_URL = "https://api.autosend.com/v1";
 export async function verifyAndMarkAttendance(
   name: string,
   email: string,
-  hash: string,
+  hash: string
 ) {
   try {
     // Recreate the hash to verify authenticity
@@ -42,53 +42,53 @@ export async function verifyAndMarkAttendance(
       };
     }
 
-    // Find the user
-    const user = await db.query.users.findFirst({
-      where: and(eq(users.name, name), eq(users.email, email)),
+    // Find the attendee
+    const attendee = await db.query.attendees.findFirst({
+      where: and(eq(attendees.name, name), eq(attendees.email, email)),
     });
 
-    // If user not found, return user not registered
-    if (!user) {
+    // If attendee not found, return not registered
+    if (!attendee) {
       return {
         success: false,
         verified: true,
-        message: "User not registered in the system",
+        message: "Attendee not registered in the system",
       };
     }
 
     // Check if already attended
-    if (user.attended) {
+    if (attendee.attended) {
       return {
         success: false,
         verified: true,
-        message: "Attendance already marked for this user",
+        message: "Attendance already marked for this attendee",
         user: {
-          name: user.name,
-          email: user.email,
-          status: user.status,
-          screenshot: user.screenshot,
-          attended: user.attended ?? false,
+          name: attendee.name,
+          email: attendee.email,
+          status: attendee.status,
+          screenshot: attendee.screenshot,
+          attended: attendee.attended ?? false,
         },
       };
     }
 
     // Update the attendance
     await db
-      .update(users)
+      .update(attendees)
       .set({
         attended: true,
       })
-      .where(and(eq(users.name, name), eq(users.email, email)));
+      .where(and(eq(attendees.name, name), eq(attendees.email, email)));
 
     return {
       success: true,
       verified: true,
       message: "Attendance marked successfully",
       user: {
-        name: user.name,
-        email: user.email,
-        status: user.status,
-        screenshot: user.screenshot,
+        name: attendee.name,
+        email: attendee.email,
+        status: attendee.status,
+        screenshot: attendee.screenshot,
         attended: true,
       },
     };
@@ -102,48 +102,48 @@ export async function verifyAndMarkAttendance(
   }
 }
 
-// Update user status from "registered" to "verified"
-export async function updateUserStatus(name: string, email: string) {
+// Update attendee status from "registered" to "verified"
+export async function updateAttendeeStatus(name: string, email: string) {
   try {
-    // Find the user
-    const user = await db.query.users.findFirst({
-      where: and(eq(users.name, name), eq(users.email, email)),
+    // Find the attendee
+    const attendee = await db.query.attendees.findFirst({
+      where: and(eq(attendees.name, name), eq(attendees.email, email)),
     });
 
-    // If user not found, return error
-    if (!user) {
+    // If attendee not found, return error
+    if (!attendee) {
       return {
         success: false,
-        message: "User not found",
+        message: "Attendee not found",
       };
     }
 
     // Only update if current status is "registered"
-    if (user.status !== "registered") {
+    if (attendee.status !== "registered") {
       return {
         success: false,
-        message: `User status is already ${user.status}`,
+        message: `Attendee status is already ${attendee.status}`,
       };
     }
 
-    // Update the user status to "verified"
+    // Update the attendee status to "verified"
     await db
-      .update(users)
+      .update(attendees)
       .set({
         status: "verified",
       })
-      .where(and(eq(users.name, name), eq(users.email, email)));
+      .where(and(eq(attendees.name, name), eq(attendees.email, email)));
 
     return {
       success: true,
-      message: "User status updated to verified",
+      message: "Attendee status updated to verified",
       user: {
-        ...user,
+        ...attendee,
         status: "verified",
       },
     };
   } catch (error) {
-    console.error("Error updating user status:", error);
+    console.error("Error updating attendee status:", error);
     return {
       success: false,
       message: `Error updating status: ${error instanceof Error ? error.message : "Unknown error"}`,
@@ -212,16 +212,16 @@ export async function processCsvUpload(csvContent: string) {
         });
 
         // Check if this participant already exists (by name and email)
-        const existingParticipant = await db.query.users.findFirst({
+        const existingParticipant = await db.query.attendees.findFirst({
           where: and(
-            eq(users.name, validatedData.fullName),
-            eq(users.email, validatedData.email),
+            eq(attendees.name, validatedData.fullName),
+            eq(attendees.email, validatedData.email)
           ),
         });
 
         // If participant doesn't exist, add them
         if (!existingParticipant) {
-          await db.insert(users).values({
+          await db.insert(attendees).values({
             name: validatedData.fullName,
             email: validatedData.email,
             phone: validatedData.phone,
@@ -273,7 +273,7 @@ export async function processCsvUpload(csvContent: string) {
 // Generate QR code as base64 image
 async function generateQRCodeImage(
   name: string,
-  email: string,
+  email: string
 ): Promise<string> {
   const baseUrl =
     process.env.NEXT_PUBLIC_BASE_URL || "https://stampede.lirena.in/";
@@ -312,8 +312,8 @@ function getCurrentYear(): string {
 // Get all participants with ticket status
 export async function getParticipants() {
   try {
-    const allParticipants = await db.query.users.findMany({
-      orderBy: [asc(users.name)],
+    const allParticipants = await db.query.attendees.findMany({
+      orderBy: [asc(attendees.name)],
       columns: {
         id: true,
         name: true,
@@ -372,12 +372,12 @@ export async function sendTestTicket(data: {
     // Generate QR code hash and ticket ID for test (using first email for QR generation)
     const qrCodeHash = generateQRCodeHash(
       data.participantName,
-      data.testEmails[0]!,
+      data.testEmails[0]!
     );
     const ticketId = generateTicketId();
     const qrCodeImage = await generateQRCodeImage(
       data.participantName,
-      data.testEmails[0]!,
+      data.testEmails[0]!
     );
 
     // Prepare dynamic data for template
@@ -437,7 +437,7 @@ export async function sendTestTicket(data: {
               "Content-Type": "application/json",
             },
             body: JSON.stringify(emailPayload),
-          },
+          }
         );
 
         const autosendResult = await autosendResponse.json();
@@ -492,16 +492,16 @@ export async function sendTestTicket(data: {
 // Update participant attendance status
 export async function updateParticipantAttendance(
   id: number,
-  attended: boolean,
+  attended: boolean
 ) {
   try {
     // Update the attendance status
     await db
-      .update(users)
+      .update(attendees)
       .set({
         attended: attended,
       })
-      .where(eq(users.id, id));
+      .where(eq(attendees.id, id));
 
     return {
       success: true,
@@ -521,11 +521,11 @@ export async function updateParticipantStatus(id: number, status: string) {
   try {
     // Update the participant status
     await db
-      .update(users)
+      .update(attendees)
       .set({
         status: status,
       })
-      .where(eq(users.id, id));
+      .where(eq(attendees.id, id));
 
     return {
       success: true,
@@ -544,7 +544,7 @@ export async function updateParticipantStatus(id: number, status: string) {
 export async function removeParticipant(id: number) {
   try {
     // Delete the participant from the database
-    await db.delete(users).where(eq(users.id, id));
+    await db.delete(attendees).where(eq(attendees.id, id));
 
     return {
       success: true,
@@ -570,12 +570,12 @@ export async function updateParticipantDetails(
     screenshot?: string;
     status?: string;
     attended?: boolean;
-  },
+  }
 ) {
   try {
     // Filter out undefined values
     const updateData = Object.fromEntries(
-      Object.entries(data).filter(([, value]) => value !== undefined),
+      Object.entries(data).filter(([, value]) => value !== undefined)
     );
 
     if (Object.keys(updateData).length === 0) {
@@ -586,7 +586,7 @@ export async function updateParticipantDetails(
     }
 
     // Update the participant details
-    await db.update(users).set(updateData).where(eq(users.id, id));
+    await db.update(attendees).set(updateData).where(eq(attendees.id, id));
 
     return {
       success: true,
@@ -631,8 +631,8 @@ export async function sendBulkTickets(data: {
     }
 
     // Fetch selected participants
-    const participants = await db.query.users.findMany({
-      where: inArray(users.id, data.selectedParticipants),
+    const participants = await db.query.attendees.findMany({
+      where: inArray(attendees.id, data.selectedParticipants),
       columns: {
         id: true,
         name: true,
@@ -661,12 +661,12 @@ export async function sendBulkTickets(data: {
         // Generate QR code hash and ticket ID
         const qrCodeHash = generateQRCodeHash(
           participant.name,
-          participant.email,
+          participant.email
         );
         const ticketId = generateTicketId();
         const qrCodeImage = await generateQRCodeImage(
           participant.name,
-          participant.email,
+          participant.email
         );
 
         // Prepare dynamic data for template
@@ -713,7 +713,7 @@ export async function sendBulkTickets(data: {
               "Content-Type": "application/json",
             },
             body: JSON.stringify(emailPayload),
-          },
+          }
         );
 
         const autosendResult = await autosendResponse.json();
@@ -721,12 +721,12 @@ export async function sendBulkTickets(data: {
         if (autosendResponse.ok) {
           // Update participant record to mark ticket as sent
           await db
-            .update(users)
+            .update(attendees)
             .set({
               ticket_sent: true,
               ticket_sent_at: new Date(),
             })
-            .where(eq(users.id, participant.id));
+            .where(eq(attendees.id, participant.id));
 
           sentCount++;
           details.push({

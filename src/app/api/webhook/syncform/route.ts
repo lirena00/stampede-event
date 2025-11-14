@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createUsers, createFailedWebhook } from "~/server/queries";
+import { createAttendees, createFailedWebhook } from "~/server/queries";
 import { toTitleCase } from "~/lib/utils";
-import { checkUserExists as checkIfUserExists } from "~/server/queries";
+import { checkAttendeeExists as checkIfAttendeeExists } from "~/server/queries";
 import { z } from "zod";
 
 // Updated schema to match your actual form fields
@@ -71,14 +71,17 @@ export async function POST(request: NextRequest) {
 
     console.log(`College Email: ${email}`);
     console.log(
-      `Submitter's Google Account: ${responderEmail || "Not available"}`,
+      `Submitter's Google Account: ${responderEmail || "Not available"}`
     );
     console.log(`Screenshot URL: ${screenshot}`);
 
     // Check if participant already exists
-    const existingUser = await checkIfUserExists(fullName, responderEmail);
+    const existingAttendee = await checkIfAttendeeExists(
+      fullName,
+      responderEmail
+    );
 
-    if (existingUser) {
+    if (existingAttendee) {
       console.log(`User already exists: ${fullName} (${responderEmail})`);
       return NextResponse.json({
         success: true,
@@ -88,13 +91,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Create new user
-    await createUsers(
+    await createAttendees(
       fullName,
       responderEmail,
       phone,
       transactionId,
       "registered", // Default status
-      screenshot,
+      screenshot
     );
 
     console.log(`New participant added: ${fullName} (${responderEmail})`);
@@ -138,7 +141,7 @@ export async function POST(request: NextRequest) {
       } catch (extractError) {
         console.error(
           "Error extracting data from failed webhook:",
-          extractError,
+          extractError
         );
       }
     }
@@ -153,7 +156,7 @@ export async function POST(request: NextRequest) {
       JSON.stringify(body || {}),
       errorMessage,
       errorDetails,
-      extractedData,
+      extractedData
     );
 
     if (error instanceof z.ZodError) {
@@ -162,13 +165,13 @@ export async function POST(request: NextRequest) {
           error: "Invalid data format",
           details: error.issues,
         },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

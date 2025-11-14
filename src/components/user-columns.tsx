@@ -48,7 +48,7 @@ import {
 import { useState } from "react";
 import { toast } from "sonner";
 import {
-  updateUserStatus,
+  updateAttendeeStatus,
   updateParticipantAttendance,
   removeParticipant,
   updateParticipantStatus,
@@ -107,7 +107,7 @@ const EditParticipantDialog = ({
   const [status, setStatus] = useState(
     user.status === "registered" || user.status === "verified"
       ? user.status
-      : "registered",
+      : "registered"
   );
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
@@ -119,7 +119,7 @@ const EditParticipantDialog = ({
       if (attended !== user.attended) {
         const attendanceResult = await updateParticipantAttendance(
           user.id,
-          attended,
+          attended
         );
         if (!attendanceResult.success) {
           toast.error(attendanceResult.message);
@@ -214,7 +214,7 @@ const EditParticipantDialog = ({
                 className="hover:bg-primary/80 cursor-pointer text-xs capitalize"
                 onClick={() => {
                   setStatus(
-                    status === "registered" ? "verified" : "registered",
+                    status === "registered" ? "verified" : "registered"
                   );
                 }}
               >
@@ -626,7 +626,7 @@ export const userColumns: ColumnDef<User>[] = [
       const date = new Date(createdAt);
       const now = new Date();
       const diffInHours = Math.floor(
-        (now.getTime() - date.getTime()) / (1000 * 60 * 60),
+        (now.getTime() - date.getTime()) / (1000 * 60 * 60)
       );
       const diffInDays = Math.floor(diffInHours / 24);
 

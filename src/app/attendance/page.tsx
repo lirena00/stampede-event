@@ -31,7 +31,10 @@ import {
 } from "lucide-react";
 import { Scanner, useDevices } from "@yudiel/react-qr-scanner";
 import { Badge } from "~/components/ui/badge";
-import { verifyAndMarkAttendance, updateUserStatus } from "~/server/actions";
+import {
+  verifyAndMarkAttendance,
+  updateAttendeeStatus,
+} from "~/server/actions";
 import Header from "~/components/Header";
 import { Skeleton } from "~/components/ui/skeleton";
 import { Spinner } from "~/components/ui/spinner";
@@ -93,7 +96,7 @@ const ScannerPage = () => {
       const response = await verifyAndMarkAttendance(
         parsedData.name,
         parsedData.email,
-        parsedData.hash,
+        parsedData.hash
       );
 
       setAttendanceResponse(response);
@@ -113,7 +116,7 @@ const ScannerPage = () => {
   const handleError = (error: unknown) => {
     console.error("Scanner error:", error);
     setError(
-      `Scanner error: ${error instanceof Error ? error.message : "Unknown error"}`,
+      `Scanner error: ${error instanceof Error ? error.message : "Unknown error"}`
     );
   };
 
@@ -394,9 +397,9 @@ const ScannerPage = () => {
                     className="hover:bg-primary/80 cursor-pointer text-xs"
                     onClick={async () => {
                       if (attendanceResponse.user?.status === "registered") {
-                        const result = await updateUserStatus(
+                        const result = await updateAttendeeStatus(
                           attendanceResponse.user.name,
-                          attendanceResponse.user.email,
+                          attendanceResponse.user.email
                         );
 
                         if (result.success) {
