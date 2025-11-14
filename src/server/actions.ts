@@ -5,7 +5,14 @@
 "use server";
 import { db } from "./db";
 
-import { attendees } from "./db/schema";
+import {
+  attendees,
+  events,
+  teams,
+  teamMembers,
+  teamInvites,
+  tasks,
+} from "./db/schema";
 import { and, eq, sql, asc, desc, inArray } from "drizzle-orm";
 import { z } from "zod";
 import Papa from "papaparse";
@@ -767,6 +774,424 @@ export async function sendBulkTickets(data: {
     return {
       success: false,
       message: error instanceof Error ? error.message : "Internal server error",
+    };
+  }
+}
+
+// Event management actions
+const createEventSchema = z.object({
+  name: z.string().min(1, "Event name is required"),
+  description: z.string().optional(),
+  address: z.string().optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+  maxCapacity: z.number().optional(),
+});
+
+export async function createEvent(formData: FormData, userId: string) {
+  try {
+    const validatedFields = createEventSchema.safeParse({
+      name: formData.get("name"),
+      description: formData.get("description"),
+      address: formData.get("address"),
+      startDate: formData.get("startDate"),
+      endDate: formData.get("endDate"),
+      maxCapacity: formData.get("maxCapacity")
+        ? Number(formData.get("maxCapacity"))
+        : undefined,
+    });
+
+    if (!validatedFields.success) {
+      return {
+        success: false,
+        message: "Validation failed",
+        errors: validatedFields.error.flatten().fieldErrors,
+      };
+    }
+
+    const { name, description, address, startDate, endDate, maxCapacity } =
+      validatedFields.data;
+
+    const result = await db
+      .insert(events)
+      .values({
+        name,
+        description,
+        address,
+        start_date: startDate ? new Date(startDate) : null,
+        end_date: endDate ? new Date(endDate) : null,
+        max_capacity: maxCapacity,
+        created_by: userId,
+      })
+      .returning();
+
+    return {
+      success: true,
+      message: "Event created successfully",
+      event: result[0],
+    };
+  } catch (error) {
+    console.error("Create event error:", error);
+    return {
+      success: false,
+      message:
+        error instanceof Error ? error.message : "Failed to create event",
+    };
+  }
+}
+
+// Team management actions
+const createTeamSchema = z.object({
+  name: z.string().min(1, "Team name is required"),
+  description: z.string().optional(),
+  eventId: z.number(),
+});
+
+export async function createTeam(formData: FormData, userId: string) {
+  try {
+    const validatedFields = createTeamSchema.safeParse({
+      name: formData.get("name"),
+      description: formData.get("description"),
+      eventId: Number(formData.get("eventId")),
+    });
+
+    if (!validatedFields.success) {
+      return {
+        success: false,
+        message: "Validation failed",
+        errors: validatedFields.error.flatten().fieldErrors,
+      };
+    }
+
+    const { name, description, eventId } = validatedFields.data;
+
+    const result = await db
+      .insert(teams)
+      .values({
+        name,
+        description,
+        event_id: eventId,
+        created_by: userId,
+      })
+      .returning();
+
+    // Add creator as admin to the team
+    await db.insert(teamMembers).values({
+      team_id: result[0]!.id,
+      user_id: userId,
+      role: "admin",
+      status: "active",
+    });
+
+    return {
+      success: true,
+      message: "Team created successfully",
+      team: result[0],
+    };
+  } catch (error) {
+    console.error("Create team error:", error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : "Failed to create team",
+    };
+  }
+}
+
+// Task management actions
+const createTaskSchema = z.object({
+  title: z.string().min(1, "Task title is required"),
+  description: z.string().optional(),
+  status: z
+    .enum(["done", "in-progress", "backlog", "in-review", "cancelled"])
+    .default("backlog"),
+  priority: z.enum(["low", "medium", "high", "urgent"]).default("medium"),
+  eventId: z.number(),
+  assignedTo: z.string().optional(),
+  dueDate: z.string().optional(),
+});
+
+export async function createTask(formData: FormData, userId: string) {
+  try {
+    const validatedFields = createTaskSchema.safeParse({
+      title: formData.get("title"),
+      description: formData.get("description"),
+      status: formData.get("status"),
+      priority: formData.get("priority"),
+      eventId: Number(formData.get("eventId")),
+      assignedTo: formData.get("assignedTo") || undefined,
+      dueDate: formData.get("dueDate") || undefined,
+    });
+
+    if (!validatedFields.success) {
+      return {
+        success: false,
+        message: "Validation failed",
+        errors: validatedFields.error.flatten().fieldErrors,
+      };
+    }
+
+    const {
+      title,
+      description,
+      status,
+      priority,
+      eventId,
+      assignedTo,
+      dueDate,
+    } = validatedFields.data;
+
+    const result = await db
+      .insert(tasks)
+      .values({
+        title,
+        description,
+        status,
+        priority,
+        event_id: eventId,
+        assigned_to: assignedTo,
+        created_by: userId,
+        due_date: dueDate ? new Date(dueDate) : null,
+      })
+      .returning();
+
+    return {
+      success: true,
+      message: "Task created successfully",
+      task: result[0],
+    };
+  } catch (error) {
+    console.error("Create task error:", error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : "Failed to create task",
+    };
+  }
+}
+
+export async function updateTaskStatus(
+  taskId: number,
+  status: string,
+  userId: string
+) {
+  try {
+    const result = await db
+      .update(tasks)
+      .set({
+        status,
+        completed_at: status === "done" ? new Date() : null,
+        updated_at: new Date(),
+      })
+      .where(eq(tasks.id, taskId))
+      .returning();
+
+    return {
+      success: true,
+      message: "Task status updated successfully",
+      task: result[0],
+    };
+  } catch (error) {
+    console.error("Update task status error:", error);
+    return {
+      success: false,
+      message:
+        error instanceof Error ? error.message : "Failed to update task status",
+    };
+  }
+}
+
+// Team invite actions
+function generateInviteCode(): string {
+  const randomString = Math.random()
+    .toString(36)
+    .substring(2, 10)
+    .toUpperCase();
+  const timestamp = Date.now().toString(36).toUpperCase();
+  return `INV-${randomString}-${timestamp}`;
+}
+
+const createTeamInviteSchema = z.object({
+  teamId: z.number(),
+  eventId: z.number(),
+  role: z.enum(["admin", "moderator"]).default("moderator"),
+  permissions: z.string().default("{}"),
+  usesLimit: z.number().optional(),
+  expiresInDays: z.number().default(7),
+});
+
+export async function createTeamInvite(formData: FormData, userId: string) {
+  try {
+    const validatedFields = createTeamInviteSchema.safeParse({
+      teamId: Number(formData.get("teamId")),
+      eventId: Number(formData.get("eventId")),
+      role: formData.get("role"),
+      permissions: formData.get("permissions"),
+      usesLimit: formData.get("usesLimit")
+        ? Number(formData.get("usesLimit"))
+        : undefined,
+      expiresInDays: formData.get("expiresInDays")
+        ? Number(formData.get("expiresInDays"))
+        : 7,
+    });
+
+    if (!validatedFields.success) {
+      return {
+        success: false,
+        message: "Validation failed",
+        errors: validatedFields.error.flatten().fieldErrors,
+      };
+    }
+
+    const { teamId, eventId, role, permissions, usesLimit, expiresInDays } =
+      validatedFields.data;
+
+    // Check if user has permission to create invite for this team (must be admin or team creator)
+    const teamMember = await db.query.teamMembers.findFirst({
+      where: and(
+        eq(teamMembers.team_id, teamId),
+        eq(teamMembers.user_id, userId)
+      ),
+    });
+
+    const team = await db.query.teams.findFirst({
+      where: eq(teams.id, teamId),
+    });
+
+    if (!team) {
+      return {
+        success: false,
+        message: "Team not found",
+      };
+    }
+
+    // Check permissions - user must be admin or team creator
+    if (
+      team.created_by !== userId &&
+      (!teamMember || teamMember.role !== "admin")
+    ) {
+      return {
+        success: false,
+        message: "You don't have permission to create invites for this team",
+      };
+    }
+
+    const inviteCode = generateInviteCode();
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + expiresInDays);
+
+    const result = await db
+      .insert(teamInvites)
+      .values({
+        invite_code: inviteCode,
+        team_id: teamId,
+        event_id: eventId,
+        role,
+        permissions,
+        created_by: userId,
+        uses_limit: usesLimit,
+        expires_at: expiresAt,
+      })
+      .returning();
+
+    return {
+      success: true,
+      message: "Team invite created successfully",
+      invite: result[0],
+    };
+  } catch (error) {
+    console.error("Create team invite error:", error);
+    return {
+      success: false,
+      message:
+        error instanceof Error ? error.message : "Failed to create team invite",
+    };
+  }
+}
+
+export async function joinTeamWithInvite(inviteCode: string, userId: string) {
+  try {
+    // Find the invite
+    const invite = await db.query.teamInvites.findFirst({
+      where: and(
+        eq(teamInvites.invite_code, inviteCode),
+        eq(teamInvites.is_active, true)
+      ),
+      with: {
+        team: true,
+        event: true,
+      },
+    });
+
+    if (!invite) {
+      return {
+        success: false,
+        message: "Invalid or expired invite code",
+      };
+    }
+
+    // Check if invite has expired
+    if (invite.expires_at && invite.expires_at < new Date()) {
+      return {
+        success: false,
+        message: "This invite has expired",
+      };
+    }
+
+    // Check if invite has reached usage limit
+    if (invite.uses_limit && (invite.used_count ?? 0) >= invite.uses_limit) {
+      return {
+        success: false,
+        message: "This invite has reached its usage limit",
+      };
+    }
+
+    // Check if user is already a member of this team
+    const existingMember = await db.query.teamMembers.findFirst({
+      where: and(
+        eq(teamMembers.team_id, invite.team_id),
+        eq(teamMembers.user_id, userId)
+      ),
+    });
+
+    if (existingMember) {
+      return {
+        success: false,
+        message: "You are already a member of this team",
+      };
+    }
+
+    // Add user to team
+    const newMember = await db
+      .insert(teamMembers)
+      .values({
+        team_id: invite.team_id,
+        user_id: userId,
+        role: invite.role,
+        permissions: invite.permissions,
+        invited_by: invite.created_by,
+        status: "active",
+      })
+      .returning();
+
+    // Increment invite usage count
+    await db
+      .update(teamInvites)
+      .set({
+        used_count: (invite.used_count ?? 0) + 1,
+      })
+      .where(eq(teamInvites.id, invite.id));
+
+    return {
+      success: true,
+      message: `Successfully joined ${invite.team.name}!`,
+      member: newMember[0],
+      team: invite.team,
+      event: invite.event,
+    };
+  } catch (error) {
+    console.error("Join team with invite error:", error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : "Failed to join team",
     };
   }
 }

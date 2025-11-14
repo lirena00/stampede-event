@@ -1,7 +1,14 @@
 import "server-only";
 import { db } from "./db";
 
-import { attendees, failedWebhooks } from "./db/schema";
+import {
+  attendees,
+  failedWebhooks,
+  events,
+  teams,
+  teamMembers,
+  tasks,
+} from "./db/schema";
 import { and, eq, sql, asc, desc, count } from "drizzle-orm";
 
 export async function createAttendees(
@@ -255,10 +262,162 @@ export async function resolveFailedWebhook(id: number) {
         message: "Failed webhook resolved and attendee created",
       };
     } else {
-      return { success: false, error: "Insufficient data to create user" };
+      return { success: false, error: "Failed to resolve webhook" };
     }
   } catch (error) {
     console.error("Error resolving failed webhook:", error);
     return { success: false, error: "Failed to resolve webhook" };
+  }
+}
+
+// Event management queries
+export async function getAllEvents() {
+  try {
+    return await db.query.events.findMany({
+      orderBy: [desc(events.created_at)],
+      with: {
+        createdBy: {
+          columns: { name: true, email: true },
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching events:", error);
+    throw new Error("Failed to fetch events");
+  }
+}
+
+export async function getEventById(id: number) {
+  try {
+    return await db.query.events.findFirst({
+      where: eq(events.id, id),
+      with: {
+        createdBy: {
+          columns: { name: true, email: true },
+        },
+        teams: {
+          with: {
+            members: {
+              with: {
+                user: {
+                  columns: { name: true, email: true },
+                },
+              },
+            },
+          },
+        },
+        tasks: {
+          with: {
+            assignedTo: {
+              columns: { name: true, email: true },
+            },
+            createdBy: {
+              columns: { name: true, email: true },
+            },
+          },
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching event:", error);
+    throw new Error("Failed to fetch event");
+  }
+}
+
+export async function getEventsByUser(userId: string) {
+  try {
+    return await db.query.events.findMany({
+      where: eq(events.created_by, userId),
+      orderBy: [desc(events.created_at)],
+    });
+  } catch (error) {
+    console.error("Error fetching user events:", error);
+    throw new Error("Failed to fetch user events");
+  }
+}
+
+// Team management queries
+export async function getTeamsByEvent(eventId: number) {
+  try {
+    return await db.query.teams.findMany({
+      where: eq(teams.event_id, eventId),
+      with: {
+        members: {
+          with: {
+            user: {
+              columns: { name: true, email: true },
+            },
+          },
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching teams:", error);
+    throw new Error("Failed to fetch teams");
+  }
+}
+
+export async function getUserTeamRole(userId: string, eventId: number) {
+  try {
+    const teamMember = await db
+      .select({
+        role: teamMembers.role,
+      })
+      .from(teamMembers)
+      .innerJoin(teams, eq(teamMembers.team_id, teams.id))
+      .where(
+        and(
+          eq(teamMembers.user_id, userId),
+          eq(teamMembers.status, "active"),
+          eq(teams.event_id, eventId)
+        )
+      )
+      .limit(1);
+
+    return teamMember[0]?.role || null;
+  } catch (error) {
+    console.error("Error fetching user team role:", error);
+    return null;
+  }
+}
+
+// Task management queries
+export async function getTasksByEvent(eventId: number) {
+  try {
+    return await db.query.tasks.findMany({
+      where: eq(tasks.event_id, eventId),
+      orderBy: [asc(tasks.created_at)],
+      with: {
+        assignedTo: {
+          columns: { name: true, email: true },
+        },
+        createdBy: {
+          columns: { name: true, email: true },
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching tasks:", error);
+    throw new Error("Failed to fetch tasks");
+  }
+}
+
+export async function getTasksByStatus(eventId: number, status: string) {
+  try {
+    return await db.query.tasks.findMany({
+      where: and(eq(tasks.event_id, eventId), eq(tasks.status, status)),
+      orderBy: [asc(tasks.created_at)],
+      with: {
+        assignedTo: {
+          columns: { name: true, email: true },
+        },
+        createdBy: {
+          columns: { name: true, email: true },
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching tasks by status:", error);
+    throw new Error("Failed to fetch tasks by status");
   }
 }
