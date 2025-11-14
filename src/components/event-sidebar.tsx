@@ -26,7 +26,6 @@ import {
   SidebarMenuItem,
   SidebarRail,
   SidebarFooter,
-  SidebarTrigger,
 } from "~/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
 import { Badge } from "~/components/ui/badge";
@@ -50,79 +49,47 @@ interface Event {
   is_active: boolean | null;
 }
 
-interface TeamMember {
-  id: number;
-  userId: string;
-  role: string;
-  teamName: string;
-}
-
 interface EventSidebarProps {
   event: Event;
-  teamMembers: TeamMember[];
 }
 
+const NAV_ITEMS = [
+  { title: "Dashboard", path: "dashboard", icon: BarChart3 },
+  { title: "Tickets", path: "tickets", icon: Ticket },
+  { title: "Tasks", path: "tasks", icon: CheckSquare },
+  { title: "Teams", path: "teams", icon: Users },
+  { title: "Upload", path: "upload", icon: Upload },
+  { title: "Failed Webhooks", path: "failed-webhooks", icon: AlertTriangle },
+] as const;
+
 export function EventSidebar({ event }: EventSidebarProps) {
-  const params = useParams();
   const pathname = usePathname();
   const { data: session } = useSession();
 
-  const eventId = params?.eventId as string;
-
-  const navItems = [
-    {
-      title: "Dashboard",
-      url: `/events/${eventId}/dashboard`,
-      icon: BarChart3,
-    },
-    {
-      title: "Tickets",
-      url: `/events/${eventId}/tickets`,
-      icon: Ticket,
-    },
-    {
-      title: "Tasks",
-      url: `/events/${eventId}/tasks`,
-      icon: CheckSquare,
-    },
-    {
-      title: "Teams",
-      url: `/events/${eventId}/teams`,
-      icon: Users,
-    },
-    {
-      title: "Upload",
-      url: `/events/${eventId}/upload`,
-      icon: Upload,
-    },
-    {
-      title: "Failed Webhooks",
-      url: `/events/${eventId}/failed-webhooks`,
-      icon: AlertTriangle,
-    },
-  ];
-
-  const handleSignOut = async () => {
-    await signOut();
-  };
-
   return (
-    <Sidebar collapsible="icon" className="border-r">
+    <Sidebar variant="inset" collapsible="icon">
       <SidebarHeader>
-        <div className="flex items-center gap-2 px-2 py-2">
-          <SidebarTrigger className="h-8 w-8" />
-          <div className="flex items-center gap-2 group-data-[collapsible=icon]:hidden">
-            <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <Calendar className="size-4" />
-            </div>
-            <div className="grid flex-1 text-left text-sm leading-tight">
-              <span className="truncate font-semibold">{event.name}</span>
-              <span className="truncate text-xs text-muted-foreground">
-                Event Management
-              </span>
-            </div>
-          </div>
-        </div>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton size="lg" asChild>
+              <Link href={`/events/${event.id}/dashboard`}>
+                <div className="flex aspect-square size-8 items-center justify-center rounded-lg overflow-hidden">
+                  <img
+                    src="/logo.png"
+                    alt="Stampede Logo"
+                    className="size-6 object-contain"
+                  />
+                </div>
+                <div className="grid flex-1 text-left text-sm leading-tight">
+                  <span className="truncate font-semibold">{event.name}</span>
+                  <span className="truncate text-xs text-muted-foreground">
+                    Event Management
+                  </span>
+                </div>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
       </SidebarHeader>
 
       <SidebarContent>
@@ -130,44 +97,50 @@ export function EventSidebar({ event }: EventSidebarProps) {
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild isActive={pathname === item.url}>
-                    <Link href={item.url}>
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {NAV_ITEMS.map((item) => {
+                const url = `/events/${event.id}/${item.path}`;
+                return (
+                  <SidebarMenuItem key={item.path}>
+                    <SidebarMenuButton asChild isActive={pathname === url}>
+                      <Link href={url}>
+                        <item.icon />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarGroup className="group-data-[collapsible=icon]:hidden">
+        <SidebarGroup className="mt-auto">
           <SidebarGroupLabel>Event Info</SidebarGroupLabel>
           <SidebarGroupContent>
-            <div className="px-3 py-2 text-xs space-y-3">
-              <div className="flex items-center justify-between">
+            <div className="space-y-1 px-2 py-1.5">
+              <div className="flex items-center justify-between gap-2 text-xs">
                 <span className="text-muted-foreground">Status</span>
-                <Badge
-                  variant={event.is_active ? "default" : "secondary"}
-                  className="h-5 text-xs"
-                >
+                <Badge variant={event.is_active ? "default" : "secondary"}>
                   {event.is_active ? "Active" : "Inactive"}
                 </Badge>
               </div>
+
               {event.max_capacity && (
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2 text-xs">
                   <span className="text-muted-foreground">Capacity</span>
                   <span className="font-medium">{event.max_capacity}</span>
                 </div>
               )}
+
               {event.start_date && (
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Start</span>
-                  <span className="font-medium text-xs">
-                    {new Date(event.start_date).toLocaleDateString()}
+                <div className="flex items-center justify-between gap-2 text-xs">
+                  <span className="text-muted-foreground">Start Date</span>
+                  <span className="font-medium">
+                    {new Date(event.start_date).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
                   </span>
                 </div>
               )}
@@ -187,39 +160,42 @@ export function EventSidebar({ event }: EventSidebarProps) {
                 >
                   <Avatar className="h-8 w-8 rounded-lg">
                     <AvatarImage
-                      src={session?.user?.image || ""}
-                      alt={session?.user?.name || ""}
+                      src={session?.user?.image ?? undefined}
+                      alt={session?.user?.name ?? "User"}
                     />
                     <AvatarFallback className="rounded-lg">
-                      {session?.user?.name?.charAt(0)?.toUpperCase() || "U"}
+                      {session?.user?.name?.[0]?.toUpperCase() ?? "U"}
                     </AvatarFallback>
                   </Avatar>
                   <div className="grid flex-1 text-left text-sm leading-tight">
                     <span className="truncate font-semibold">
-                      {session?.user?.name || "User"}
+                      {session?.user?.name ?? "User"}
                     </span>
-                    <span className="truncate text-xs">
-                      {session?.user?.email || ""}
+                    <span className="truncate text-xs text-muted-foreground">
+                      {session?.user?.email ?? ""}
                     </span>
                   </div>
                   <ChevronUp className="ml-auto size-4" />
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
               <DropdownMenuContent
-                className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
+                className="w-56"
                 side="top"
                 align="end"
                 sideOffset={4}
               >
                 <DropdownMenuItem asChild>
-                  <Link href="/events">
-                    <Home className="h-4 w-4" />
+                  <Link href="/events" className="cursor-pointer">
+                    <Home />
                     Back to Events
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleSignOut}>
-                  <LogOut className="h-4 w-4" />
+                <DropdownMenuItem
+                  onClick={() => signOut()}
+                  className="cursor-pointer text-destructive focus:text-destructive"
+                >
+                  <LogOut />
                   Sign Out
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -227,6 +203,7 @@ export function EventSidebar({ event }: EventSidebarProps) {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
+
       <SidebarRail />
     </Sidebar>
   );
