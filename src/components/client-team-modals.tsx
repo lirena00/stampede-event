@@ -12,7 +12,10 @@ interface ClientTeamModalsProps {
   canCreateTeam: boolean;
 }
 
-export function ClientTeamModals({ eventId, canCreateTeam }: ClientTeamModalsProps) {
+export function ClientTeamModals({
+  eventId,
+  canCreateTeam,
+}: ClientTeamModalsProps) {
   const router = useRouter();
 
   const handleRefresh = () => {
@@ -35,7 +38,11 @@ interface ClientInviteModalProps {
   teamName: string;
 }
 
-export function ClientInviteModal({ teamId, eventId, teamName }: ClientInviteModalProps) {
+export function ClientInviteModal({
+  teamId,
+  eventId,
+  teamName,
+}: ClientInviteModalProps) {
   const router = useRouter();
 
   return (

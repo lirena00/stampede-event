@@ -77,10 +77,7 @@ async function EventTasksContent({ eventId }: { eventId: string }) {
               <p className="text-sm text-muted-foreground mb-6">
                 Tasks help you organize and track work for your event.
               </p>
-              <CreateTaskModal
-                eventId={eventIdNum}
-                teamMembers={teamMembers}
-              />
+              <CreateTaskModal eventId={eventIdNum} teamMembers={teamMembers} />
             </CardContent>
           </Card>
         </div>
@@ -96,10 +93,7 @@ async function EventTasksContent({ eventId }: { eventId: string }) {
               Project management for {event.name}
             </p>
           </div>
-          <CreateTaskModal
-            eventId={eventIdNum}
-            teamMembers={teamMembers}
-          />
+          <CreateTaskModal eventId={eventIdNum} teamMembers={teamMembers} />
         </div>
 
         <LinearTaskBoard tasks={tasks} />

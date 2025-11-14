@@ -76,7 +76,13 @@ export function CreateTaskModal({
     defaultValues: {
       title: "",
       description: "",
-      status: (initialStatus as "done" | "in-progress" | "backlog" | "in-review" | "cancelled") || "backlog",
+      status:
+        (initialStatus as
+          | "done"
+          | "in-progress"
+          | "backlog"
+          | "in-review"
+          | "cancelled") || "backlog",
       priority: "medium",
       assignedTo: "unassigned",
       dueDate: "",
@@ -102,7 +108,10 @@ export function CreateTaskModal({
       formData.append("status", data.status);
       formData.append("priority", data.priority);
       formData.append("eventId", eventId.toString());
-      formData.append("assignedTo", data.assignedTo === "unassigned" ? "" : data.assignedTo || "");
+      formData.append(
+        "assignedTo",
+        data.assignedTo === "unassigned" ? "" : data.assignedTo || ""
+      );
       formData.append("dueDate", data.dueDate || "");
 
       const result = await createTask(formData, session.user.id);

@@ -10,7 +10,15 @@ import {
 import { Badge } from "~/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
 import { Button } from "~/components/ui/button";
-import { Users, Crown, Shield, Settings, Calendar, Hash, AlertCircle } from "lucide-react";
+import {
+  Users,
+  Crown,
+  Shield,
+  Settings,
+  Calendar,
+  Hash,
+  AlertCircle,
+} from "lucide-react";
 import {
   getEventById,
   getTeamsByEvent,
@@ -22,7 +30,10 @@ import { auth } from "~/lib/auth";
 import { headers } from "next/headers";
 import { Separator } from "~/components/ui/separator";
 import { CopyInviteCode } from "~/components/copy-invite-code";
-import { ClientTeamModals, ClientInviteModal } from "~/components/client-team-modals";
+import {
+  ClientTeamModals,
+  ClientInviteModal,
+} from "~/components/client-team-modals";
 
 export const dynamic = "force-dynamic";
 
@@ -46,7 +57,10 @@ async function EventTeamsContent({ eventId }: { eventId: string }) {
     getTeamsByEvent(eventIdNum),
     getUserTeamRole(session.user.id, eventIdNum),
     getTeamInvitesByEvent(eventIdNum).catch((error) => {
-      console.error("Failed to fetch team invites, continuing without them:", error);
+      console.error(
+        "Failed to fetch team invites, continuing without them:",
+        error
+      );
       return [];
     }),
   ]);
@@ -101,9 +115,16 @@ async function EventTeamsContent({ eventId }: { eventId: string }) {
           <CardContent>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {teamInvites.map((invite) => (
-                <div key={invite.id} className="p-3 border rounded-lg space-y-2">
+                <div
+                  key={invite.id}
+                  className="p-3 border rounded-lg space-y-2"
+                >
                   <div className="flex items-center justify-between">
-                    <Badge variant={invite.role === 'admin' ? 'default' : 'secondary'}>
+                    <Badge
+                      variant={
+                        invite.role === "admin" ? "default" : "secondary"
+                      }
+                    >
                       {invite.role}
                     </Badge>
                     <Badge variant="outline" className="text-xs">
@@ -118,7 +139,8 @@ async function EventTeamsContent({ eventId }: { eventId: string }) {
                   </div>
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
                     <span>
-                      {invite.used_count || 0}{invite.uses_limit ? `/${invite.uses_limit}` : ''} used
+                      {invite.used_count || 0}
+                      {invite.uses_limit ? `/${invite.uses_limit}` : ""} used
                     </span>
                     {invite.expires_at && (
                       <span className="flex items-center gap-1">
@@ -137,8 +159,11 @@ async function EventTeamsContent({ eventId }: { eventId: string }) {
       {/* Teams Grid */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {teams.map((team) => {
-          const teamInviteCount = teamInvites?.filter(inv => inv.team_id === team.id && inv.is_active).length || 0;
-          
+          const teamInviteCount =
+            teamInvites?.filter(
+              (inv) => inv.team_id === team.id && inv.is_active
+            ).length || 0;
+
           return (
             <Card key={team.id} className="hover:shadow-md transition-shadow">
               <CardHeader className="pb-3">
@@ -180,14 +205,21 @@ async function EventTeamsContent({ eventId }: { eventId: string }) {
                           className="flex items-center gap-2"
                         >
                           <Avatar className="h-6 w-6">
-                            <AvatarImage src="" alt={member.user?.name || member.user?.email} />
+                            <AvatarImage
+                              src=""
+                              alt={member.user?.name || member.user?.email}
+                            />
                             <AvatarFallback className="text-xs bg-primary/10 text-primary font-medium">
-                              {member.user?.name?.charAt(0)?.toUpperCase() || member.user?.email?.charAt(0)?.toUpperCase() || "U"}
+                              {member.user?.name?.charAt(0)?.toUpperCase() ||
+                                member.user?.email?.charAt(0)?.toUpperCase() ||
+                                "U"}
                             </AvatarFallback>
                           </Avatar>
                           <div className="flex-1 min-w-0">
                             <div className="text-sm font-medium truncate">
-                              {member.user?.name || member.user?.email?.split('@')[0] || "Unknown User"}
+                              {member.user?.name ||
+                                member.user?.email?.split("@")[0] ||
+                                "Unknown User"}
                             </div>
                             <div className="text-xs text-muted-foreground truncate">
                               {member.user?.email}
@@ -216,7 +248,9 @@ async function EventTeamsContent({ eventId }: { eventId: string }) {
                     <div className="text-sm text-muted-foreground p-3 border border-dashed rounded-lg text-center">
                       <Users className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
                       <div>No members yet</div>
-                      <div className="text-xs mt-1">Create an invite to add members</div>
+                      <div className="text-xs mt-1">
+                        Create an invite to add members
+                      </div>
                     </div>
                   )}
                 </div>
@@ -229,7 +263,7 @@ async function EventTeamsContent({ eventId }: { eventId: string }) {
                     <Settings className="h-3 w-3 mr-1" />
                     Manage
                   </Button>
-                  <ClientInviteModal 
+                  <ClientInviteModal
                     teamId={team.id}
                     eventId={eventIdNum}
                     teamName={team.name}
