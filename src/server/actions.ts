@@ -167,6 +167,75 @@ const participantSchema = z.object({
   screenshot: z.string().optional(),
 });
 
+// Manual participant creation schema
+const manualParticipantSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  email: z.string().email("Invalid email address"),
+  phone: z.string().optional(),
+  transactionId: z.string().optional(),
+  screenshot: z.string().optional(),
+  status: z.string().default("registered"),
+});
+
+// Create a single participant manually
+export async function createManualParticipant(formData: FormData) {
+  try {
+    const validatedFields = manualParticipantSchema.safeParse({
+      name: formData.get("name"),
+      email: formData.get("email"),
+      phone: formData.get("phone"),
+      transactionId: formData.get("transactionId"),
+      screenshot: formData.get("screenshot"),
+      status: formData.get("status"),
+    });
+
+    if (!validatedFields.success) {
+      return {
+        success: false,
+        message:
+          "Validation failed: " +
+          validatedFields.error.issues.map((e) => e.message).join(", "),
+      };
+    }
+
+    const { name, email, phone, transactionId, screenshot, status } =
+      validatedFields.data;
+
+    // Check if attendee already exists
+    const existingAttendee = await db.query.attendees.findFirst({
+      where: and(eq(attendees.name, name), eq(attendees.email, email)),
+    });
+
+    if (existingAttendee) {
+      return {
+        success: false,
+        message: "Participant with this name and email already exists",
+      };
+    }
+
+    // Create new attendee
+    await db.insert(attendees).values({
+      name,
+      email,
+      phone: phone || "",
+      transaction_id: transactionId || "",
+      status,
+      screenshot: screenshot || "",
+    });
+
+    return {
+      success: true,
+      message: "Participant added successfully",
+    };
+  } catch (error) {
+    console.error("Error creating manual participant:", error);
+    return {
+      success: false,
+      message: `Error creating participant: ${error instanceof Error ? error.message : "Unknown error"}`,
+    };
+  }
+}
+
 // Process CSV file and insert new participants
 export async function processCsvUpload(csvContent: string) {
   try {

@@ -1,26 +1,12 @@
 import { Suspense } from "react";
 import { Card, CardContent } from "~/components/ui/card";
 import { LinearTaskBoard } from "~/components/LinearTaskBoard";
-import { getEventById, getTasksByEvent } from "~/server/queries";
-
-type Task = {
-  id: number;
-  title: string;
-  description?: string | null;
-  status: string;
-  priority: string;
-  assignedTo?: string | null;
-  dueDate?: Date | null;
-  createdAt?: Date | null;
-  updatedAt?: Date | null;
-  eventId: number;
-};
-
-type Event = {
-  id: number;
-  name: string;
-  description?: string | null;
-};
+import { CreateTaskModal } from "~/components/create-task-modal";
+import {
+  getEventById,
+  getTasksByEvent,
+  getTeamsByEvent,
+} from "~/server/queries";
 
 async function EventTasksContent({ eventId }: { eventId: string }) {
   const eventIdNum = parseInt(eventId);
@@ -39,9 +25,10 @@ async function EventTasksContent({ eventId }: { eventId: string }) {
   }
 
   try {
-    const [event, tasks] = await Promise.all([
+    const [event, tasks, teams] = await Promise.all([
       getEventById(eventIdNum),
       getTasksByEvent(eventIdNum),
+      getTeamsByEvent(eventIdNum),
     ]);
 
     if (!event) {
@@ -59,6 +46,16 @@ async function EventTasksContent({ eventId }: { eventId: string }) {
       );
     }
 
+    // Get all team members for task assignment
+    const teamMembers = teams.flatMap(
+      (team) =>
+        team.members?.map((member) => ({
+          id: member.user_id,
+          name: member.user?.name,
+          email: member.user?.email || "",
+        })) || []
+    );
+
     if (tasks.length === 0) {
       return (
         <div className="space-y-6">
@@ -71,15 +68,19 @@ async function EventTasksContent({ eventId }: { eventId: string }) {
             </div>
           </div>
           <Card className="text-center py-12">
-            <CardContent>
+            <CardContent className="text-center">
               <h3 className="text-lg font-semibold mb-2">No Tasks Yet</h3>
               <p className="text-muted-foreground mb-4">
                 Create your first task for {event.name} to get started with
                 project management.
               </p>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground mb-6">
                 Tasks help you organize and track work for your event.
               </p>
+              <CreateTaskModal
+                eventId={eventIdNum}
+                teamMembers={teamMembers}
+              />
             </CardContent>
           </Card>
         </div>
@@ -95,17 +96,13 @@ async function EventTasksContent({ eventId }: { eventId: string }) {
               Project management for {event.name}
             </p>
           </div>
+          <CreateTaskModal
+            eventId={eventIdNum}
+            teamMembers={teamMembers}
+          />
         </div>
 
-        <LinearTaskBoard
-          tasks={tasks}
-          onTaskUpdate={(taskId, newStatus) => {
-            console.log("Task update:", taskId, newStatus);
-          }}
-          onTaskCreate={(status) => {
-            console.log("Create task with status:", status);
-          }}
-        />
+        <LinearTaskBoard tasks={tasks} />
       </div>
     );
   } catch (error) {
@@ -134,12 +131,12 @@ function TasksLoadingSkeleton() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-4">
-        {[...Array(4)].map((_, i) => (
-          <div key={`column-${i}`} className="space-y-3">
+        {Array.from({ length: 4 }, (_, i) => (
+          <div key={`column-skeleton-${i}`} className="space-y-3">
             <div className="h-6 w-24 bg-muted animate-pulse rounded" />
-            {[...Array(3)].map((_, j) => (
+            {Array.from({ length: 3 }, (_, j) => (
               <div
-                key={`task-${i}-${j}`}
+                key={`task-skeleton-${i}-${j}`}
                 className="h-20 bg-muted animate-pulse rounded"
               />
             ))}

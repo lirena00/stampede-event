@@ -7,9 +7,10 @@ import {
   events,
   teams,
   teamMembers,
+  teamInvites,
   tasks,
 } from "./db/schema";
-import { and, eq, sql, asc, desc, count } from "drizzle-orm";
+import { and, eq, asc, desc, count } from "drizzle-orm";
 
 export async function createAttendees(
   name: string,
@@ -378,6 +379,29 @@ export async function getUserTeamRole(userId: string, eventId: number) {
   } catch (error) {
     console.error("Error fetching user team role:", error);
     return null;
+  }
+}
+
+export async function getTeamInvitesByEvent(eventId: number) {
+  try {
+    return await db.query.teamInvites.findMany({
+      where: and(
+        eq(teamInvites.event_id, eventId),
+        eq(teamInvites.is_active, true)
+      ),
+      orderBy: [desc(teamInvites.created_at)],
+      with: {
+        team: {
+          columns: { name: true },
+        },
+        createdBy: {
+          columns: { name: true, email: true },
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching team invites:", error);
+    throw new Error("Failed to fetch team invites");
   }
 }
 

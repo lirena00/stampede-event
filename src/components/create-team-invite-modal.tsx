@@ -49,6 +49,7 @@ interface CreateTeamInviteModalProps {
   eventId: number;
   teamName: string;
   onInviteCreated?: () => void;
+  trigger?: React.ReactNode;
 }
 
 export function CreateTeamInviteModal({
@@ -56,6 +57,7 @@ export function CreateTeamInviteModal({
   eventId,
   teamName,
   onInviteCreated,
+  trigger,
 }: CreateTeamInviteModalProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -144,10 +146,12 @@ export function CreateTeamInviteModal({
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogTrigger asChild>
-        <Button size="sm" variant="outline">
-          <UserPlus className="h-4 w-4 mr-2" />
-          Create Invite
-        </Button>
+        {trigger || (
+          <Button size="sm" variant="outline">
+            <UserPlus className="h-4 w-4 mr-2" />
+            Create Invite
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>

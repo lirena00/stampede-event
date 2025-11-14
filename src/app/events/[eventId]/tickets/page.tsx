@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { notFound } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -17,17 +18,32 @@ import {
   Users,
   Download,
 } from "lucide-react";
+import { getEventById, getDashboardStats } from "~/server/queries";
 
 export const dynamic = "force-dynamic";
 
-function EventTicketsContent({ eventId }: { eventId: string }) {
-  // Mock data - would be replaced with actual API calls
+async function EventTicketsContent({ eventId }: { eventId: string }) {
+  const eventIdNum = parseInt(eventId);
+
+  if (Number.isNaN(eventIdNum)) {
+    notFound();
+  }
+
+  const [event, dashboardStats] = await Promise.all([
+    getEventById(eventIdNum),
+    getDashboardStats(),
+  ]);
+
+  if (!event) {
+    notFound();
+  }
+
   const ticketStats = {
-    totalAttendees: 156,
-    ticketsSent: 134,
-    ticketsDelivered: 127,
-    ticketsFailed: 7,
-    pendingTickets: 22,
+    totalAttendees: dashboardStats.totalUsers,
+    ticketsSent: dashboardStats.ticketsSentUsers,
+    ticketsDelivered: dashboardStats.ticketsSentUsers, // Assuming all sent are delivered for now
+    ticketsFailed: 0, // No failed tickets tracked currently
+    pendingTickets: dashboardStats.ticketsNotSentUsers,
   };
 
   return (

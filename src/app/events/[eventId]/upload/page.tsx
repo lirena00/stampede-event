@@ -33,6 +33,7 @@ import {
   CloudUpload,
   UserPlus,
 } from "lucide-react";
+import { processCsvUpload, createManualParticipant } from "~/server/actions";
 
 type UploadResult = {
   success: boolean;
@@ -106,17 +107,9 @@ export default function EventUploadPage({ params }: EventUploadPageProps) {
     setLoading(true);
     setResult(null);
 
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("eventId", eventId);
-
     try {
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      const data = (await response.json()) as UploadResult;
+      const csvContent = await file.text();
+      const data = await processCsvUpload(csvContent);
       setResult(data);
 
       if (data.success) {
@@ -124,6 +117,12 @@ export default function EventUploadPage({ params }: EventUploadPageProps) {
           title: "Upload successful",
           description: data.message,
         });
+        setFile(null);
+        // Clear file input
+        const fileInput = document.querySelector(
+          'input[type="file"]'
+        ) as HTMLInputElement;
+        if (fileInput) fileInput.value = "";
       } else {
         toast({
           title: "Upload failed",
@@ -136,6 +135,11 @@ export default function EventUploadPage({ params }: EventUploadPageProps) {
       setResult({
         success: false,
         message: "An error occurred during upload",
+      });
+      toast({
+        title: "Upload failed",
+        description: "An error occurred during upload",
+        variant: "destructive",
       });
     } finally {
       setLoading(false);
@@ -155,23 +159,20 @@ export default function EventUploadPage({ params }: EventUploadPageProps) {
     setManualLoading(true);
 
     try {
-      const response = await fetch("/api/manual-participant", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          ...manualParticipant,
-          eventId: eventId,
-        }),
-      });
+      const formData = new FormData();
+      formData.append("name", manualParticipant.name);
+      formData.append("email", manualParticipant.email);
+      formData.append("phone", manualParticipant.phone);
+      formData.append("transactionId", manualParticipant.transactionId);
+      formData.append("screenshot", manualParticipant.screenshot);
+      formData.append("status", manualParticipant.status);
 
-      const data = await response.json();
+      const data = await createManualParticipant(formData);
 
       if (data.success) {
         toast({
           title: "Participant added",
-          description: "Participant added successfully",
+          description: data.message,
         });
         setManualParticipant({
           name: "",

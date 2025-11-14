@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
+import { Card, CardContent } from "~/components/ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,6 +25,8 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { cn } from "~/lib/utils";
+import { updateTaskStatus } from "~/server/actions";
+import { toast } from "~/hooks/use-toast";
 
 // Task status configuration with Linear-style colors and icons
 const taskStatuses = {
@@ -92,57 +95,97 @@ interface TaskColumnProps {
   onTaskCreate: (status: keyof typeof taskStatuses) => void;
 }
 
-function TaskCard({
-  task,
-  onStatusUpdate,
-}: {
-  task: Task;
-  onStatusUpdate: (
-    taskId: number,
-    newStatus: keyof typeof taskStatuses
-  ) => void;
-}) {
+function TaskCard({ task }: { task: Task }) {
+  const router = useRouter();
+  const [isUpdating, setIsUpdating] = useState(false);
   const statusConfig =
     taskStatuses[task.status as keyof typeof taskStatuses] ||
     taskStatuses.backlog;
   const priorityStyle =
     priorityConfig[task.priority as keyof typeof priorityConfig] ||
     priorityConfig.medium;
-  const StatusIcon = statusConfig.icon;
+
+  const handleStatusUpdate = async (newStatus: keyof typeof taskStatuses) => {
+    if (isUpdating) return;
+
+    setIsUpdating(true);
+    try {
+      const result = await updateTaskStatus(task.id, newStatus, "system");
+      if (result?.success) {
+        toast({
+          title: "Task updated",
+          description: `Task moved to ${taskStatuses[newStatus].label}`,
+        });
+        router.refresh();
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to update task status",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Failed to update task:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update task status",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
 
   return (
-    <Card className="mb-3 hover:shadow-md transition-shadow cursor-pointer group">
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between mb-2">
-          <div className="flex items-center gap-2">
+    <Card className="mb-3 hover:shadow-md transition-all duration-200 cursor-pointer group bg-background border border-border hover:border-primary/20">
+      <CardContent className="p-3 sm:p-4">
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex items-start gap-2 flex-1 min-w-0">
             <div
-              className={cn("w-2 h-2 rounded-full", statusConfig.dotColor)}
+              className={cn(
+                "w-2 h-2 rounded-full mt-1.5 shrink-0",
+                statusConfig.dotColor
+              )}
             />
-            <h3 className="font-medium text-sm line-clamp-2 flex-1">
-              {task.title}
-            </h3>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-medium text-sm leading-tight mb-1 wrap-break-word">
+                {task.title}
+              </h3>
+              {task.description && (
+                <p className="text-xs text-muted-foreground line-clamp-2 wrap-break-word">
+                  {task.description}
+                </p>
+              )}
+            </div>
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
                 size="sm"
-                className="opacity-0 group-hover:opacity-100 h-6 w-6 p-0"
+                className="opacity-0 group-hover:opacity-100 h-7 w-7 p-0 shrink-0 ml-2"
+                disabled={isUpdating}
               >
                 <MoreHorizontal className="h-3 w-3" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" className="w-48">
               {Object.entries(taskStatuses).map(([status, config]) => (
                 <DropdownMenuItem
                   key={status}
                   onClick={() =>
-                    onStatusUpdate(task.id, status as keyof typeof taskStatuses)
+                    handleStatusUpdate(status as keyof typeof taskStatuses)
                   }
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-2 cursor-pointer"
+                  disabled={status === task.status || isUpdating}
                 >
                   <config.icon className="h-4 w-4" />
-                  {config.label}
+                  <span>{config.label}</span>
+                  {status === task.status && (
+                    <Badge variant="secondary" className="ml-auto text-xs">
+                      Current
+                    </Badge>
+                  )}
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
@@ -155,33 +198,55 @@ function TaskCard({
           </p>
         )}
 
-        <div className="flex items-center justify-between">
+        {/* Priority and Due Date Row */}
+        <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <Badge
-              variant="outline"
-              className={cn("text-xs px-2 py-0", priorityStyle.color)}
-            >
-              {priorityStyle.label}
-            </Badge>
+            {task.priority && (
+              <Badge
+                variant="outline"
+                className={cn(
+                  "text-xs px-2 py-0.5 border-0 font-medium",
+                  priorityStyle.color
+                )}
+              >
+                {priorityStyle.label}
+              </Badge>
+            )}
             {task.due_date && (
               <div className="flex items-center gap-1 text-xs text-muted-foreground">
                 <Clock className="h-3 w-3" />
-                {new Date(task.due_date).toLocaleDateString()}
+                <span>
+                  {new Date(task.due_date).toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                  })}
+                </span>
               </div>
             )}
           </div>
+        </div>
 
-          {task.assignedTo && (
-            <Avatar className="h-6 w-6">
-              <AvatarFallback className="text-xs">
-                {task.assignedTo.name
-                  ?.split(" ")
-                  .map((n) => n[0])
-                  .join("") || "?"}
+        {/* Assignee Section */}
+        {task.assignedTo && (
+          <div className="flex items-center gap-2 pt-2 border-t border-border/50">
+            <Avatar className="h-6 w-6 shrink-0">
+              <AvatarImage
+                src=""
+                alt={task.assignedTo.name || task.assignedTo.email}
+              />
+              <AvatarFallback className="text-xs bg-primary/10 text-primary font-medium">
+                {task.assignedTo.name?.charAt(0)?.toUpperCase() ||
+                  task.assignedTo.email.charAt(0)?.toUpperCase()}
               </AvatarFallback>
             </Avatar>
-          )}
-        </div>
+            <Badge
+              variant="secondary"
+              className="text-xs font-normal bg-secondary/50 hover:bg-secondary/70 transition-colors"
+            >
+              {task.assignedTo.name || task.assignedTo.email.split("@")[0]}
+            </Badge>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -190,40 +255,36 @@ function TaskCard({
 function TaskColumn({
   status,
   tasks,
-  onTaskUpdate,
   onTaskCreate,
-}: TaskColumnProps) {
+}: Omit<TaskColumnProps, "onTaskUpdate">) {
   const statusConfig = taskStatuses[status];
-  const StatusIcon = statusConfig.icon;
 
   return (
-    <div className="flex-1 min-w-80">
-      <div className="mb-4">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-3">
-            <StatusIcon className="h-4 w-4 text-muted-foreground" />
-            <h2 className="font-medium text-sm">{statusConfig.label}</h2>
-            <Badge variant="secondary" className="text-xs">
-              {tasks.length}
-            </Badge>
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onTaskCreate(status)}
-            className="h-6 w-6 p-0 opacity-60 hover:opacity-100"
-          >
-            <Plus className="h-3 w-3" />
-          </Button>
+    <div className="flex-1 min-w-[280px] max-w-[340px] bg-muted/30 rounded-lg p-3">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <div className={cn("w-2 h-2 rounded-full", statusConfig.dotColor)} />
+          <h2 className="font-semibold text-sm text-foreground">
+            {statusConfig.label}
+          </h2>
+          <Badge variant="secondary" className="text-xs px-2 py-1">
+            {tasks.length}
+          </Badge>
         </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 w-7 p-0 hover:bg-background/80 rounded-md"
+          onClick={() => onTaskCreate(status)}
+        >
+          <Plus className="h-3 w-3" />
+        </Button>
       </div>
 
-      <div className="space-y-2">
-        {tasks.map((task) => (
-          <TaskCard key={task.id} task={task} onStatusUpdate={onTaskUpdate} />
-        ))}
-
-        {tasks.length === 0 && (
+      <div className="space-y-2 min-h-[200px]">
+        {tasks.length > 0 ? (
+          tasks.map((task) => <TaskCard key={task.id} task={task} />)
+        ) : (
           <div className="text-center py-8 text-muted-foreground">
             <div className="text-xs">No tasks</div>
           </div>
@@ -235,19 +296,18 @@ function TaskColumn({
 
 interface LinearTaskBoardProps {
   tasks: Task[];
-  onTaskUpdate: (taskId: number, newStatus: keyof typeof taskStatuses) => void;
-  onTaskCreate: (status: keyof typeof taskStatuses) => void;
 }
 
-export function LinearTaskBoard({
-  tasks,
-  onTaskUpdate,
-  onTaskCreate,
-}: LinearTaskBoardProps) {
+export function LinearTaskBoard({ tasks }: LinearTaskBoardProps) {
   const [filteredTasks, setFilteredTasks] = useState(tasks);
   const [filterBy, setFilterBy] = useState<"all" | "assigned" | "created">(
     "all"
   );
+
+  const handleTaskCreate = (status: keyof typeof taskStatuses) => {
+    // TODO: Implement task creation functionality
+    console.log("Create task with status:", status);
+  };
 
   useEffect(() => {
     setFilteredTasks(tasks);
@@ -298,22 +358,34 @@ export function LinearTaskBoard({
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <Button size="sm" onClick={() => onTaskCreate("backlog")}>
+          <Button size="sm" onClick={() => handleTaskCreate("backlog")}>
             <Plus className="h-4 w-4 mr-2" />
-            New Task
+            Add Task
           </Button>
         </div>
       </div>
 
       {/* Task Board */}
-      <div className="flex gap-6 overflow-x-auto pb-4">
+      {/* Mobile View */}
+      <div className="block sm:hidden space-y-4">
         {Object.entries(taskStatuses).map(([status]) => (
           <TaskColumn
             key={status}
             status={status as keyof typeof taskStatuses}
             tasks={groupedTasks[status as keyof typeof taskStatuses]}
-            onTaskUpdate={onTaskUpdate}
-            onTaskCreate={onTaskCreate}
+            onTaskCreate={handleTaskCreate}
+          />
+        ))}
+      </div>
+
+      {/* Desktop/Tablet View */}
+      <div className="hidden sm:flex gap-4 lg:gap-6 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
+        {Object.entries(taskStatuses).map(([status]) => (
+          <TaskColumn
+            key={status}
+            status={status as keyof typeof taskStatuses}
+            tasks={groupedTasks[status as keyof typeof taskStatuses]}
+            onTaskCreate={handleTaskCreate}
           />
         ))}
       </div>
