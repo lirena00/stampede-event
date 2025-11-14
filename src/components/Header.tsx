@@ -46,6 +46,24 @@ const navigation = [
     description: "Overview and statistics",
   },
   {
+    name: "Events",
+    href: "/events",
+    icon: Calendar,
+    description: "Manage events",
+  },
+  {
+    name: "Tasks",
+    href: "/tasks",
+    icon: Activity,
+    description: "Project management",
+  },
+  {
+    name: "Teams",
+    href: "/teams",
+    icon: Users,
+    description: "Team collaboration",
+  },
+  {
     name: "Upload",
     href: "/upload",
     icon: Upload,
